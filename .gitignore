@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build output (keep main.js for releases)
+# main.js
+
+# User settings (contains API keys)
+data.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temp files
+*.log
+.eagle-temp/

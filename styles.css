@@ -1,0 +1,62 @@
+.cmdspace-paste-choice-modal .cmdspace-paste-buttons {
+	display: flex;
+	gap: 10px;
+	margin-bottom: 16px;
+}
+
+.cmdspace-paste-choice-modal .cmdspace-paste-buttons button {
+	flex: 1;
+	padding: 12px 16px;
+	font-size: 14px;
+}
+
+.cmdspace-eagle-suggestion {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.cmdspace-eagle-suggestion-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.cmdspace-eagle-suggestion-name {
+	font-weight: 500;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.cmdspace-eagle-suggestion-meta {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.cmdspace-eagle-suggestion-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-top: 4px;
+}
+
+.cmdspace-eagle-tag {
+	font-size: 11px;
+	padding: 2px 6px;
+	border-radius: 4px;
+	background: var(--background-modifier-hover);
+}
+
+.cmdspace-eagle-tag-more {
+	font-size: 11px;
+	color: var(--text-muted);
+}
+
+.cmdspace-eagle-link {
+	color: var(--text-accent);
+	text-decoration: none;
+}
+
+.cmdspace-eagle-link:hover {
+	text-decoration: underline;
+}
