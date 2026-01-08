@@ -2,7 +2,7 @@
 
 Obsidian plugin to connect [Eagle](https://eagle.cool) asset library with your vault.
 
-![Search and Embed](assets/CMDS-eagle1.gif)
+
 
 ## Features
 
@@ -38,15 +38,17 @@ Obsidian plugin to connect [Eagle](https://eagle.cool) asset library with your v
 
 Search your Eagle library and embed images directly into notes.
 
-![Search Modal](assets/CMDS-eagle2.gif)
+![Search and Embed](assets/CMDS-eagle1.gif)
 
-![Search Results](assets/CMDS-eagle3.png)
+
 
 ### Image Paste/Drop
 
 When pasting or dropping images, choose where to save them.
 
-![Paste Options](assets/CMDS-eagle4.gif)
+![Search Modal](assets/CMDS-eagle2.gif)
+![Search Results](assets/CMDS-eagle3.png)
+
 
 ### Cloud Upload
 
@@ -58,9 +60,8 @@ Upload images to cloud storage for sharing and portability.
 
 Configure your preferred cloud provider and search defaults.
 
+![Paste Options](assets/CMDS-eagle4.gif)
 ![Settings](assets/CMDS-eagle6.png)
-
-![Cloud Settings](assets/CMDS-eagle7.png)
 
 ## Cloud Providers
 
@@ -70,6 +71,8 @@ Configure your preferred cloud provider and search defaults.
 | **Cloudflare R2** | Requires Worker deployment (see docs) |
 | **Amazon S3** | Standard S3 credentials |
 | **WebDAV** | Works with Synology, Nextcloud, etc. |
+
+![Cloud Settings](assets/CMDS-eagle7.png)
 
 ## Commands
 
