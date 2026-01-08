@@ -227,9 +227,18 @@ var EagleApiService = class {
         method: "GET"
       });
       const json = response.json;
-      console.log("[CMDS Eagle] library/info response:", json);
-      if ((json == null ? void 0 : json.status) === "success" && ((_a = json == null ? void 0 : json.data) == null ? void 0 : _a.library)) {
-        return json.data.library;
+      console.log("[CMDS Eagle] library/info response:", JSON.stringify(json, null, 2));
+      if ((json == null ? void 0 : json.status) === "success" && (json == null ? void 0 : json.data)) {
+        const data = json.data;
+        if (typeof data.library === "string") {
+          return data.library;
+        }
+        if (typeof ((_a = data.library) == null ? void 0 : _a.path) === "string") {
+          return data.library.path;
+        }
+        if (typeof data.path === "string") {
+          return data.path;
+        }
       }
       return null;
     } catch (e) {
@@ -263,23 +272,23 @@ var EagleApiService = class {
     }
   }
   async getOriginalFilePath(item) {
-    const libraryPath = await this.getLibraryPath();
-    if (libraryPath) {
-      const originalPath2 = `${libraryPath}/images/${item.id}.info/${item.name}.${item.ext}`;
-      console.log("[CMDS Eagle] originalPath (from library):", originalPath2);
-      return originalPath2;
-    }
     const thumbnailPath = await this.getThumbnailPath(item.id);
-    if (!thumbnailPath) {
-      console.log("[CMDS Eagle] getThumbnailPath returned null for item:", item.id);
-      return null;
+    if (thumbnailPath) {
+      console.log("[CMDS Eagle] thumbnailPath:", thumbnailPath);
+      const decodedPath = this.safeDecodeUri(thumbnailPath);
+      const folderPath = decodedPath.substring(0, decodedPath.lastIndexOf("/"));
+      const originalPath = `${folderPath}/${item.name}.${item.ext}`;
+      console.log("[CMDS Eagle] originalPath:", originalPath);
+      return originalPath;
     }
-    console.log("[CMDS Eagle] thumbnailPath:", thumbnailPath);
-    const decodedPath = this.safeDecodeUri(thumbnailPath);
-    const folderPath = decodedPath.substring(0, decodedPath.lastIndexOf("/"));
-    const originalPath = `${folderPath}/${item.name}.${item.ext}`;
-    console.log("[CMDS Eagle] originalPath (from thumbnail):", originalPath);
-    return originalPath;
+    const libraryPath = await this.getLibraryPath();
+    if (libraryPath && typeof libraryPath === "string") {
+      const originalPath = `${libraryPath}/images/${item.id}.info/${item.name}.${item.ext}`;
+      console.log("[CMDS Eagle] originalPath (from library):", originalPath);
+      return originalPath;
+    }
+    console.log("[CMDS Eagle] Could not get file path for item:", item.id);
+    return null;
   }
   safeDecodeUri(str) {
     try {
