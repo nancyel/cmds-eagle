@@ -220,11 +220,20 @@ var EagleApiService = class {
     }
   }
   async getLibraryPath() {
+    var _a;
     try {
-      const response = await this.get("/api/library/info");
-      const data = response.data;
-      return (data == null ? void 0 : data.library) || (data == null ? void 0 : data.path) || null;
+      const response = await (0, import_obsidian.requestUrl)({
+        url: `${this.baseUrl}/api/library/info`,
+        method: "GET"
+      });
+      const json = response.json;
+      console.log("[CMDS Eagle] library/info response:", json);
+      if ((json == null ? void 0 : json.status) === "success" && ((_a = json == null ? void 0 : json.data) == null ? void 0 : _a.library)) {
+        return json.data.library;
+      }
+      return null;
     } catch (e) {
+      console.error("[CMDS Eagle] getLibraryPath error:", e);
       return null;
     }
   }
@@ -254,6 +263,12 @@ var EagleApiService = class {
     }
   }
   async getOriginalFilePath(item) {
+    const libraryPath = await this.getLibraryPath();
+    if (libraryPath) {
+      const originalPath2 = `${libraryPath}/images/${item.id}.info/${item.name}.${item.ext}`;
+      console.log("[CMDS Eagle] originalPath (from library):", originalPath2);
+      return originalPath2;
+    }
     const thumbnailPath = await this.getThumbnailPath(item.id);
     if (!thumbnailPath) {
       console.log("[CMDS Eagle] getThumbnailPath returned null for item:", item.id);
@@ -263,7 +278,7 @@ var EagleApiService = class {
     const decodedPath = this.safeDecodeUri(thumbnailPath);
     const folderPath = decodedPath.substring(0, decodedPath.lastIndexOf("/"));
     const originalPath = `${folderPath}/${item.name}.${item.ext}`;
-    console.log("[CMDS Eagle] originalPath:", originalPath);
+    console.log("[CMDS Eagle] originalPath (from thumbnail):", originalPath);
     return originalPath;
   }
   safeDecodeUri(str) {

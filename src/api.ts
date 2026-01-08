@@ -170,10 +170,18 @@ export class EagleApiService {
 
 	async getLibraryPath(): Promise<string | null> {
 		try {
-			const response = await this.get<{ library: string }>('/api/library/info');
-			const data = response.data as unknown as { library?: string; path?: string };
-			return data?.library || data?.path || null;
-		} catch {
+			const response = await requestUrl({
+				url: `${this.baseUrl}/api/library/info`,
+				method: 'GET',
+			});
+			const json = response.json;
+			console.log('[CMDS Eagle] library/info response:', json);
+			if (json?.status === 'success' && json?.data?.library) {
+				return json.data.library;
+			}
+			return null;
+		} catch (e) {
+			console.error('[CMDS Eagle] getLibraryPath error:', e);
 			return null;
 		}
 	}
@@ -206,6 +214,13 @@ export class EagleApiService {
 	}
 
 	async getOriginalFilePath(item: EagleItem): Promise<string | null> {
+		const libraryPath = await this.getLibraryPath();
+		if (libraryPath) {
+			const originalPath = `${libraryPath}/images/${item.id}.info/${item.name}.${item.ext}`;
+			console.log('[CMDS Eagle] originalPath (from library):', originalPath);
+			return originalPath;
+		}
+
 		const thumbnailPath = await this.getThumbnailPath(item.id);
 		if (!thumbnailPath) {
 			console.log('[CMDS Eagle] getThumbnailPath returned null for item:', item.id);
@@ -218,7 +233,7 @@ export class EagleApiService {
 		const folderPath = decodedPath.substring(0, decodedPath.lastIndexOf('/'));
 		const originalPath = `${folderPath}/${item.name}.${item.ext}`;
 		
-		console.log('[CMDS Eagle] originalPath:', originalPath);
+		console.log('[CMDS Eagle] originalPath (from thumbnail):', originalPath);
 		return originalPath;
 	}
 
