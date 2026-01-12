@@ -128,11 +128,15 @@ export class CMDSPACEEagleSettingTab extends PluginSettingTab {
 		footerEl.createEl('div', { text: `CMDS Eagle v${this.plugin.manifest.version}`, attr: { style: 'margin-bottom: 8px;' } });
 		
 		const linksEl = footerEl.createEl('div');
-		const eduLink = linksEl.createEl('a', { text: 'CMDSPACE Education', href: 'https://class.cmdspace.kr/' });
+		linksEl.createSpan({ text: 'CMDSPACE ' });
+		const eduLink = linksEl.createEl('a', { text: 'Education', href: 'https://class.cmdspace.kr/' });
 		eduLink.setAttr('target', '_blank');
 		linksEl.createSpan({ text: ' · ' });
 		const ytLink = linksEl.createEl('a', { text: 'YouTube', href: 'https://www.youtube.com/@cmdspace' });
 		ytLink.setAttr('target', '_blank');
+		linksEl.createSpan({ text: ' · ' });
+		const ghLink = linksEl.createEl('a', { text: 'GitHub', href: 'https://github.com/johnfkoo951/cmds-eagle' });
+		ghLink.setAttr('target', '_blank');
 	}
 
 	private renderCloudProviderSettings(containerEl: HTMLElement): void {
