@@ -1756,7 +1756,7 @@ var CMDSPACELinkEagle = class extends import_obsidian4.Plugin {
     this.lastModifiedFile = null;
   }
   async onload() {
-    console.log("[CMDS Eagle] Loading plugin v1.5.0");
+    console.log("[CMDS Eagle] Loading plugin v1.6.0");
     await this.loadSettings();
     this.api = new EagleApiService(this.settings);
     this.addCommand({

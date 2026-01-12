@@ -35,7 +35,7 @@ export default class CMDSPACELinkEagle extends Plugin {
 	private lastModifiedFile: string | null = null;
 
 	async onload(): Promise<void> {
-		console.log('[CMDS Eagle] Loading plugin v1.5.0');
+		console.log('[CMDS Eagle] Loading plugin v1.6.0');
 
 		await this.loadSettings();
 		this.api = new EagleApiService(this.settings);
