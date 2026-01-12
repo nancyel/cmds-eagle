@@ -1251,10 +1251,6 @@ var CMDSPACEEagleSettingTab = class extends import_obsidian3.PluginSettingTab {
       this.plugin.settings.autoConvertCrossPlatformPaths = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian3.Setting(containerEl).setName("Conversion mode").setDesc("Choose how to convert paths: modify source file or render-only (experimental)").addDropdown((dropdown) => dropdown.addOption("modify-source", "Modify source file").addOption("render-only", "Render only (keep source intact)").setValue(this.plugin.settings.crossPlatformConversionMode).onChange(async (value) => {
-      this.plugin.settings.crossPlatformConversionMode = value;
-      await this.plugin.saveSettings();
-    }));
     const currentPlatform = process.platform;
     const currentUsername = this.detectCurrentUsername();
     new import_obsidian3.Setting(containerEl).setName("Add current computer").setDesc(`Detected: ${currentPlatform === "darwin" ? "macOS" : "Windows"} / ${currentUsername}`).addButton((button) => button.setButtonText("Add").onClick(async () => {
@@ -1798,13 +1794,6 @@ var CMDSPACELinkEagle = class extends import_obsidian4.Plugin {
         await this.convertCrossPlatformPaths();
       }
     });
-    this.addCommand({
-      id: "convert-cross-platform-render-only",
-      name: "Convert cross-platform paths (render-only, no source modification)",
-      callback: async () => {
-        await this.convertCrossPlatformRenderOnly();
-      }
-    });
     this.registerEvent(
       this.app.workspace.on("editor-paste", async (evt, editor) => {
         await this.handlePaste(evt, editor);
@@ -1828,7 +1817,6 @@ var CMDSPACELinkEagle = class extends import_obsidian4.Plugin {
     this.addSettingTab(new CMDSPACEEagleSettingTab(this.app, this));
     this.registerMarkdownPostProcessor((el, ctx) => {
       this.processEagleLinks(el);
-      this.processFileUrls(el);
     });
     this.registerEvent(
       this.app.workspace.on("active-leaf-change", () => {
@@ -1847,15 +1835,20 @@ var CMDSPACELinkEagle = class extends import_obsidian4.Plugin {
     );
     this.registerEvent(
       this.app.workspace.on("file-open", (file) => {
+        console.log(`[CMDS Eagle] file-open event: ${file == null ? void 0 : file.path}`);
+        console.log(`[CMDS Eagle] enableCrossPlatform: ${this.settings.enableCrossPlatform}`);
+        console.log(`[CMDS Eagle] autoConvertCrossPlatformPaths: ${this.settings.autoConvertCrossPlatformPaths}`);
+        console.log(`[CMDS Eagle] conversionMode: ${this.settings.crossPlatformConversionMode}`);
+        console.log(`[CMDS Eagle] lastModifiedFile: ${this.lastModifiedFile}`);
         if (file && this.settings.enableCrossPlatform && this.settings.autoConvertCrossPlatformPaths) {
-          if (this.settings.crossPlatformConversionMode === "modify-source") {
-            if (this.lastModifiedFile !== file.path) {
-              setTimeout(() => this.autoConvertOnFileOpen(file), 200);
-            }
-          } else if (this.settings.crossPlatformConversionMode === "render-only") {
-            setTimeout(() => this.autoConvertRenderOnlyOnFileOpen(), 500);
+          if (this.lastModifiedFile !== file.path) {
+            console.log(`[CMDS Eagle] Triggering auto-conversion for: ${file.path}`);
+            setTimeout(() => this.autoConvertOnFileOpen(file), 300);
+          } else {
+            console.log(`[CMDS Eagle] Skipping - file was just modified by us`);
           }
         }
+        this.lastModifiedFile = null;
       })
     );
     this.addRibbonIcon("image", "CMDSPACE: Eagle", () => {
@@ -3054,7 +3047,6 @@ ${item.annotation ? `> | **Annotation** | ${item.annotation} |
         const newUrl = this.pathToFileUrl(convertedPath);
         newContent = newContent.replace(originalUrl, newUrl);
         convertedCount++;
-        console.log(`[CMDS Eagle] File converted: ${originalUrl.substring(0, 50)}... \u2192 ${newUrl.substring(0, 50)}...`);
       }
     }
     if (convertedCount > 0) {
@@ -3098,41 +3090,61 @@ ${item.annotation ? `> | **Annotation** | ${item.annotation} |
       new import_obsidian4.Notice("No active markdown view");
       return;
     }
-    const contentEl = view.contentEl;
-    const images = contentEl.querySelectorAll("img");
+    const allContainers = [
+      view.contentEl,
+      view.containerEl,
+      document.querySelector(".workspace-leaf.mod-active .view-content"),
+      document.querySelector(".workspace-leaf.mod-active .markdown-preview-view"),
+      document.querySelector(".workspace-leaf.mod-active .cm-content")
+    ].filter(Boolean);
     let convertedCount = 0;
-    images.forEach((img) => {
-      const src = img.getAttribute("src");
-      if (!src)
-        return;
-      if (img.getAttribute("data-xplatform-converted"))
-        return;
-      let extractedPath = null;
-      if (src.startsWith("app://")) {
-        const appMatch = src.match(/^app:\/\/[^/]+\/(.+)$/);
-        if (appMatch) {
-          extractedPath = this.fullyDecodeUri(appMatch[1]);
+    const processedSrcs = /* @__PURE__ */ new Set();
+    for (const container of allContainers) {
+      const images = container.querySelectorAll("img");
+      console.log(`[CMDS Eagle] Found ${images.length} images in container`);
+      images.forEach((img) => {
+        const src = img.getAttribute("src");
+        if (!src)
+          return;
+        if (processedSrcs.has(src))
+          return;
+        if (img.getAttribute("data-xplatform-converted"))
+          return;
+        console.log(`[CMDS Eagle] Processing image src: ${src.substring(0, 80)}`);
+        let extractedPath = null;
+        if (src.startsWith("app://")) {
+          const appMatch = src.match(/^app:\/\/[^/]+\/(.+)$/);
+          if (appMatch) {
+            extractedPath = this.fullyDecodeUri(appMatch[1]);
+            console.log(`[CMDS Eagle] Extracted from app://: ${extractedPath == null ? void 0 : extractedPath.substring(0, 60)}`);
+          }
+        } else if (src.startsWith("file://")) {
+          extractedPath = this.fullyDecodeUri(src.replace(/^file:\/\/\/?/, ""));
+          console.log(`[CMDS Eagle] Extracted from file://: ${extractedPath == null ? void 0 : extractedPath.substring(0, 60)}`);
         }
-      } else if (src.startsWith("file://")) {
-        extractedPath = this.fullyDecodeUri(src.replace(/^file:\/\/\/?/, ""));
-      }
-      if (!extractedPath)
-        return;
-      if (extractedPath.startsWith("Users/") && !extractedPath.startsWith("/")) {
-        extractedPath = "/" + extractedPath;
-      }
-      if (!this.isPathFromDifferentPlatform(extractedPath))
-        return;
-      const convertedPath = this.convertPathForCurrentPlatform(extractedPath);
-      if (convertedPath !== extractedPath) {
-        const newSrc = this.pathToFileUrl(convertedPath);
-        img.setAttribute("src", newSrc);
-        img.setAttribute("data-xplatform-converted", "true");
-        img.setAttribute("data-original-src", src);
-        convertedCount++;
-        console.log(`[CMDS Eagle] Render-only converted: ${src.substring(0, 50)}...`);
-      }
-    });
+        if (!extractedPath) {
+          console.log(`[CMDS Eagle] Could not extract path from: ${src.substring(0, 50)}`);
+          return;
+        }
+        if (extractedPath.startsWith("Users/") && !extractedPath.startsWith("/")) {
+          extractedPath = "/" + extractedPath;
+        }
+        if (!this.isPathFromDifferentPlatform(extractedPath)) {
+          console.log(`[CMDS Eagle] Path not from different platform`);
+          return;
+        }
+        const convertedPath = this.convertPathForCurrentPlatform(extractedPath);
+        if (convertedPath !== extractedPath) {
+          const newSrc = this.pathToFileUrl(convertedPath);
+          console.log(`[CMDS Eagle] Converting: ${src.substring(0, 40)} \u2192 ${newSrc.substring(0, 40)}`);
+          img.setAttribute("src", newSrc);
+          img.setAttribute("data-xplatform-converted", "true");
+          img.setAttribute("data-original-src", src);
+          processedSrcs.add(src);
+          convertedCount++;
+        }
+      });
+    }
     if (convertedCount > 0) {
       new import_obsidian4.Notice(`Render-only: converted ${convertedCount} image paths (source unchanged)`);
     } else {

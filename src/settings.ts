@@ -572,17 +572,7 @@ export class CMDSPACEEagleSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
-			.setName('Conversion mode')
-			.setDesc('Choose how to convert paths: modify source file or render-only (experimental)')
-			.addDropdown(dropdown => dropdown
-				.addOption('modify-source', 'Modify source file')
-				.addOption('render-only', 'Render only (keep source intact)')
-				.setValue(this.plugin.settings.crossPlatformConversionMode)
-				.onChange(async (value: CrossPlatformConversionMode) => {
-					this.plugin.settings.crossPlatformConversionMode = value;
-					await this.plugin.saveSettings();
-				}));
+
 
 		const currentPlatform = process.platform as PlatformType;
 		const currentUsername = this.detectCurrentUsername();

@@ -80,13 +80,7 @@ export default class CMDSPACELinkEagle extends Plugin {
 			},
 		});
 
-		this.addCommand({
-			id: 'convert-cross-platform-render-only',
-			name: 'Convert cross-platform paths (render-only, no source modification)',
-			callback: async () => {
-				await this.convertCrossPlatformRenderOnly();
-			},
-		});
+
 
 		this.registerEvent(
 			this.app.workspace.on('editor-paste', async (evt: ClipboardEvent, editor: Editor) => {
@@ -117,7 +111,6 @@ export default class CMDSPACELinkEagle extends Plugin {
 
 		this.registerMarkdownPostProcessor((el, ctx) => {
 			this.processEagleLinks(el);
-			this.processFileUrls(el);
 		});
 
 		this.registerEvent(
@@ -140,15 +133,21 @@ export default class CMDSPACELinkEagle extends Plugin {
 
 		this.registerEvent(
 			this.app.workspace.on('file-open', (file: TFile | null) => {
+				console.log(`[CMDS Eagle] file-open event: ${file?.path}`);
+				console.log(`[CMDS Eagle] enableCrossPlatform: ${this.settings.enableCrossPlatform}`);
+				console.log(`[CMDS Eagle] autoConvertCrossPlatformPaths: ${this.settings.autoConvertCrossPlatformPaths}`);
+				console.log(`[CMDS Eagle] conversionMode: ${this.settings.crossPlatformConversionMode}`);
+				console.log(`[CMDS Eagle] lastModifiedFile: ${this.lastModifiedFile}`);
+				
 				if (file && this.settings.enableCrossPlatform && this.settings.autoConvertCrossPlatformPaths) {
-					if (this.settings.crossPlatformConversionMode === 'modify-source') {
-						if (this.lastModifiedFile !== file.path) {
-							setTimeout(() => this.autoConvertOnFileOpen(file), 200);
-						}
-					} else if (this.settings.crossPlatformConversionMode === 'render-only') {
-						setTimeout(() => this.autoConvertRenderOnlyOnFileOpen(), 500);
+					if (this.lastModifiedFile !== file.path) {
+						console.log(`[CMDS Eagle] Triggering auto-conversion for: ${file.path}`);
+						setTimeout(() => this.autoConvertOnFileOpen(file), 300);
+					} else {
+						console.log(`[CMDS Eagle] Skipping - file was just modified by us`);
 					}
 				}
+				this.lastModifiedFile = null;
 			})
 		);
 
@@ -1595,7 +1594,6 @@ ${item.annotation ? `> | **Annotation** | ${item.annotation} |\n` : ''}${linkSec
 				const newUrl = this.pathToFileUrl(convertedPath);
 				newContent = newContent.replace(originalUrl, newUrl);
 				convertedCount++;
-				console.log(`[CMDS Eagle] File converted: ${originalUrl.substring(0, 50)}... → ${newUrl.substring(0, 50)}...`);
 			}
 		}
 
@@ -1649,46 +1647,70 @@ ${item.annotation ? `> | **Annotation** | ${item.annotation} |\n` : ''}${linkSec
 			return;
 		}
 
-		const contentEl = view.contentEl;
-		const images = contentEl.querySelectorAll('img') as NodeListOf<HTMLImageElement>;
+		const allContainers = [
+			view.contentEl,
+			view.containerEl,
+			document.querySelector('.workspace-leaf.mod-active .view-content'),
+			document.querySelector('.workspace-leaf.mod-active .markdown-preview-view'),
+			document.querySelector('.workspace-leaf.mod-active .cm-content'),
+		].filter(Boolean) as HTMLElement[];
+
 		let convertedCount = 0;
+		const processedSrcs = new Set<string>();
 
-		images.forEach((img) => {
-			const src = img.getAttribute('src');
-			if (!src) return;
+		for (const container of allContainers) {
+			const images = container.querySelectorAll('img') as NodeListOf<HTMLImageElement>;
+			console.log(`[CMDS Eagle] Found ${images.length} images in container`);
 
-			if (img.getAttribute('data-xplatform-converted')) return;
+			images.forEach((img) => {
+				const src = img.getAttribute('src');
+				if (!src) return;
+				if (processedSrcs.has(src)) return;
+				if (img.getAttribute('data-xplatform-converted')) return;
 
-			let extractedPath: string | null = null;
-			
-			if (src.startsWith('app://')) {
-				const appMatch = src.match(/^app:\/\/[^/]+\/(.+)$/);
-				if (appMatch) {
-					extractedPath = this.fullyDecodeUri(appMatch[1]);
+				console.log(`[CMDS Eagle] Processing image src: ${src.substring(0, 80)}`);
+
+				let extractedPath: string | null = null;
+				
+				if (src.startsWith('app://')) {
+					const appMatch = src.match(/^app:\/\/[^/]+\/(.+)$/);
+					if (appMatch) {
+						extractedPath = this.fullyDecodeUri(appMatch[1]);
+						console.log(`[CMDS Eagle] Extracted from app://: ${extractedPath?.substring(0, 60)}`);
+					}
+				} else if (src.startsWith('file://')) {
+					extractedPath = this.fullyDecodeUri(src.replace(/^file:\/\/\/?/, ''));
+					console.log(`[CMDS Eagle] Extracted from file://: ${extractedPath?.substring(0, 60)}`);
 				}
-			} else if (src.startsWith('file://')) {
-				extractedPath = this.fullyDecodeUri(src.replace(/^file:\/\/\/?/, ''));
-			}
 
-			if (!extractedPath) return;
+				if (!extractedPath) {
+					console.log(`[CMDS Eagle] Could not extract path from: ${src.substring(0, 50)}`);
+					return;
+				}
 
-			if (extractedPath.startsWith('Users/') && !extractedPath.startsWith('/')) {
-				extractedPath = '/' + extractedPath;
-			}
+				if (extractedPath.startsWith('Users/') && !extractedPath.startsWith('/')) {
+					extractedPath = '/' + extractedPath;
+				}
 
-			if (!this.isPathFromDifferentPlatform(extractedPath)) return;
+				if (!this.isPathFromDifferentPlatform(extractedPath)) {
+					console.log(`[CMDS Eagle] Path not from different platform`);
+					return;
+				}
 
-			const convertedPath = this.convertPathForCurrentPlatform(extractedPath);
-			
-			if (convertedPath !== extractedPath) {
-				const newSrc = this.pathToFileUrl(convertedPath);
-				img.setAttribute('src', newSrc);
-				img.setAttribute('data-xplatform-converted', 'true');
-				img.setAttribute('data-original-src', src);
-				convertedCount++;
-				console.log(`[CMDS Eagle] Render-only converted: ${src.substring(0, 50)}...`);
-			}
-		});
+				const convertedPath = this.convertPathForCurrentPlatform(extractedPath);
+				
+				if (convertedPath !== extractedPath) {
+					const newSrc = this.pathToFileUrl(convertedPath);
+					console.log(`[CMDS Eagle] Converting: ${src.substring(0, 40)} → ${newSrc.substring(0, 40)}`);
+					
+					img.setAttribute('src', newSrc);
+					img.setAttribute('data-xplatform-converted', 'true');
+					img.setAttribute('data-original-src', src);
+					processedSrcs.add(src);
+					convertedCount++;
+				}
+			});
+		}
 
 		if (convertedCount > 0) {
 			new Notice(`Render-only: converted ${convertedCount} image paths (source unchanged)`);
