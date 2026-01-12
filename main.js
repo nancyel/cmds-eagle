@@ -1798,6 +1798,13 @@ var CMDSPACELinkEagle = class extends import_obsidian4.Plugin {
         await this.convertCrossPlatformPaths();
       }
     });
+    this.addCommand({
+      id: "convert-cross-platform-render-only",
+      name: "Convert cross-platform paths (render-only, no source modification)",
+      callback: async () => {
+        await this.convertCrossPlatformRenderOnly();
+      }
+    });
     this.registerEvent(
       this.app.workspace.on("editor-paste", async (evt, editor) => {
         await this.handlePaste(evt, editor);
@@ -1845,6 +1852,8 @@ var CMDSPACELinkEagle = class extends import_obsidian4.Plugin {
             if (this.lastModifiedFile !== file.path) {
               setTimeout(() => this.autoConvertOnFileOpen(file), 200);
             }
+          } else if (this.settings.crossPlatformConversionMode === "render-only") {
+            setTimeout(() => this.autoConvertRenderOnlyOnFileOpen(), 500);
           }
         }
       })
@@ -3077,6 +3086,99 @@ ${item.annotation ? `> | **Annotation** | ${item.annotation} |
     if (convertedCount > 0) {
       await this.app.vault.modify(file, newContent);
       new import_obsidian4.Notice(`Auto-converted ${convertedCount} cross-platform paths`);
+    }
+  }
+  async convertCrossPlatformRenderOnly() {
+    if (!this.settings.enableCrossPlatform) {
+      new import_obsidian4.Notice("Cross-platform sync is disabled in settings");
+      return;
+    }
+    const view = this.app.workspace.getActiveViewOfType(import_obsidian4.MarkdownView);
+    if (!view) {
+      new import_obsidian4.Notice("No active markdown view");
+      return;
+    }
+    const contentEl = view.contentEl;
+    const images = contentEl.querySelectorAll("img");
+    let convertedCount = 0;
+    images.forEach((img) => {
+      const src = img.getAttribute("src");
+      if (!src)
+        return;
+      if (img.getAttribute("data-xplatform-converted"))
+        return;
+      let extractedPath = null;
+      if (src.startsWith("app://")) {
+        const appMatch = src.match(/^app:\/\/[^/]+\/(.+)$/);
+        if (appMatch) {
+          extractedPath = this.fullyDecodeUri(appMatch[1]);
+        }
+      } else if (src.startsWith("file://")) {
+        extractedPath = this.fullyDecodeUri(src.replace(/^file:\/\/\/?/, ""));
+      }
+      if (!extractedPath)
+        return;
+      if (extractedPath.startsWith("Users/") && !extractedPath.startsWith("/")) {
+        extractedPath = "/" + extractedPath;
+      }
+      if (!this.isPathFromDifferentPlatform(extractedPath))
+        return;
+      const convertedPath = this.convertPathForCurrentPlatform(extractedPath);
+      if (convertedPath !== extractedPath) {
+        const newSrc = this.pathToFileUrl(convertedPath);
+        img.setAttribute("src", newSrc);
+        img.setAttribute("data-xplatform-converted", "true");
+        img.setAttribute("data-original-src", src);
+        convertedCount++;
+        console.log(`[CMDS Eagle] Render-only converted: ${src.substring(0, 50)}...`);
+      }
+    });
+    if (convertedCount > 0) {
+      new import_obsidian4.Notice(`Render-only: converted ${convertedCount} image paths (source unchanged)`);
+    } else {
+      new import_obsidian4.Notice("No cross-platform paths found to convert");
+    }
+  }
+  async autoConvertRenderOnlyOnFileOpen() {
+    const view = this.app.workspace.getActiveViewOfType(import_obsidian4.MarkdownView);
+    if (!view)
+      return;
+    const contentEl = view.contentEl;
+    const images = contentEl.querySelectorAll("img");
+    let convertedCount = 0;
+    images.forEach((img) => {
+      const src = img.getAttribute("src");
+      if (!src)
+        return;
+      if (img.getAttribute("data-xplatform-converted"))
+        return;
+      let extractedPath = null;
+      if (src.startsWith("app://")) {
+        const appMatch = src.match(/^app:\/\/[^/]+\/(.+)$/);
+        if (appMatch) {
+          extractedPath = this.fullyDecodeUri(appMatch[1]);
+        }
+      } else if (src.startsWith("file://")) {
+        extractedPath = this.fullyDecodeUri(src.replace(/^file:\/\/\/?/, ""));
+      }
+      if (!extractedPath)
+        return;
+      if (extractedPath.startsWith("Users/") && !extractedPath.startsWith("/")) {
+        extractedPath = "/" + extractedPath;
+      }
+      if (!this.isPathFromDifferentPlatform(extractedPath))
+        return;
+      const convertedPath = this.convertPathForCurrentPlatform(extractedPath);
+      if (convertedPath !== extractedPath) {
+        const newSrc = this.pathToFileUrl(convertedPath);
+        img.setAttribute("src", newSrc);
+        img.setAttribute("data-xplatform-converted", "true");
+        img.setAttribute("data-original-src", src);
+        convertedCount++;
+      }
+    });
+    if (convertedCount > 0) {
+      console.log(`[CMDS Eagle] Auto render-only: converted ${convertedCount} paths`);
     }
   }
   async uploadAllImagesToCloud() {
