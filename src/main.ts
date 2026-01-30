@@ -949,7 +949,7 @@ ${item.annotation ? `> | **Annotation** | ${item.annotation} |\n` : ''}${linkSec
 				const parentFolder = activeFile.parent?.path || '';
 				const relativeFolder = attachmentFolder.slice(2);
 				targetPath = parentFolder ? `${parentFolder}/${relativeFolder}/${filename}` : `${relativeFolder}/${filename}`;
-			} else if (attachmentFolder) {
+			} else if (attachmentFolder && attachmentFolder !== "/") {
 				targetPath = `${attachmentFolder}/${filename}`;
 			} else {
 				targetPath = filename;
